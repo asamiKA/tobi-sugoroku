@@ -54,7 +54,8 @@
       max-width: 800px;
       margin: 0 auto;
       height: 80vh;
-      aspect-ratio: 1 / 1;
+      box-sizing: border-box;
+      aspect-ratio: auto;
       background-color: #e2e8f0;
       background-size: contain;
       background-position: center;
@@ -62,6 +63,10 @@
       border: 2px solid #cbd5e1;
       border-radius: 8px;
       overflow: hidden;
+    }
+    .board-container.image-loaded {
+      height: auto;
+      aspect-ratio: var(--image-aspect-ratio);
     }
 
     /* 碁盤の目（格子）オーバーレイ */
@@ -473,7 +478,10 @@
         const image = new Image();
         image.onload = () => {
           boardContainer.style.backgroundImage = `url(${reader.result})`;
-          boardContainer.style.aspectRatio = `${image.naturalWidth} / ${image.naturalHeight}`;
+          boardContainer.style.setProperty(
+            '--image-aspect-ratio',
+            `${image.naturalWidth} / ${image.naturalHeight}`
+          );
           boardContainer.classList.add('image-loaded');
           rebuildBoard();
         };
