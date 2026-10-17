@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>飛び双六ビューア（超高速UX・全矢印事前レンダリング版）</title>
+  <style>
+    :root {
+      --primary-color: #3b82f6;
+      --bg-color: #f8fafc;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: var(--bg-color);
+      color: #1e293b;
+    }
+    h1 {
+      font-size: 1.25rem;
+      margin-top: 0;
+    }
+    .controls {
+      background: white;
+      padding: 12px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+    .btn {
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .btn:hover {
+      opacity: 0.9;
+    }
+    .btn-secondary {
+      background: #64748b;
+    }
+
+    /* トリミングモーダル */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    .modal.active {
+      display: flex;
+    }
+    .crop-container {
+      position: relative;
+      max-width: 90vw;
+      max-height: 75vh;
+      overflow: hidden;
+      user-select: none;
+    }
+    .crop-image {
+      max-width: 100%;
+      max-height: 75vh;
+      display: block;
+    }
+    .crop-box {
+      position: absolute;
+      border: 2px dashed #ff0055;
+      background: rgba(255, 0, 85, 0.15);
+      cursor: move;
+    }
+
+    /* ビューアエリア */
+    .board-container {
+      position: relative;
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+      aspect-ratio: 1 / 1;
+      background-color: #e2e8f0;
+      background-size: contain;
+      background-position: center;
+      background-repeat: no-repeat;
+      border: 2px solid #cbd5e1;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    /* 碁盤の目（格子）オーバーレイ */
+    .grid-overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      pointer-events: none;
+    }
+    .grid-cell {
+      border: 1px solid rgba(0, 0, 0, 0.25);
+      position: relative;
+      pointer-events: auto;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .grid-cell:hover {
+      background: rgba(59, 130, 246, 0.15);
+    }
+    .grid-cell.selected {
+      background: rgba(234, 179, 8, 0.3);
+      border: 2px solid #eab308;
+    }
+    .cell-number {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      background: rgba(255, 255, 255, 0.85);
+      font-size: 0.75rem;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-weight: bold;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      max-width: calc(100% - 8px);
+    }
+    .cell-name {
+      font-size: 0.7rem;
+      font-weight: normal;
+      overflow-wrap: anywhere;
+    }
+    .board-container.image-loaded .cell-number {
+      display: none;
+    }
+
+    /* SVG 矢印用層（デフォルトはすべて薄く非表示に近い状態にする） */
+    .svg-layer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .svg-layer path {
+      opacity: 0.05;
+      transition: opacity 0.2s ease-in-out;
+    }
+    /* 選択されたセルの矢印だけクッキリ表示 */
+    .svg-layer path.active-arrow {
+      opacity: 0.9;
+    }
+
+    /* 凡例 */
+    .legend {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.85rem;
+    }
+    .legend-color {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🎲 飛び双六ビューア（高速UX・常時描画切替版）</h1>
+
+  <div class="controls">
+    <label class="btn">
+      📷 画像を選択
+      <input type="file" id="imageInput" accept="image/*" style="display:none;">
+    </label>
+    <div>
+      <label>格子サイズ: </label>
+      <select id="gridWidthSelect">
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="8"selected>8</option>
+      </select>
+      x
+      <select id="gridHeightSelect">
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="8">8</option>
+        <option value="12" selected>12</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 双六盤面 -->
+  <div class="board-container" id="boardContainer">
+    <div class="grid-overlay" id="gridOverlay"></div>
+    <svg class="svg-layer" id="svgLayer">
+      <defs>
+        <marker id="arrow-1" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ef4444"/></marker>
+        <marker id="arrow-2" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#f97316"/></marker>
+        <marker id="arrow-3" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#eab308"/></marker>
+        <marker id="arrow-4" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#22c55e"/></marker>
+        <marker id="arrow-5" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#3b82f6"/></marker>
+        <marker id="arrow-6" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#a855f7"/></marker>
+      </defs>
+    </svg>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-color" style="background:#ef4444"></div> 1</div>
+    <div class="legend-item"><div class="legend-color" style="background:#f97316"></div> 2</div>
+    <div class="legend-item"><div class="legend-color" style="background:#eab308"></div> 3</div>
+    <div class="legend-item"><div class="legend-color" style="background:#22c55e"></div> 4</div>
+    <div class="legend-item"><div class="legend-color" style="background:#3b82f6"></div> 5</div>
+    <div class="legend-item"><div class="legend-color" style="background:#a855f7"></div> 6</div>
+  </div>
+
+  <!-- クロップ用モーダル -->
+  <div class="modal" id="cropModal">
+    <div style="color:white; margin-bottom:10px;">ドラッグして切り抜き範囲を指定してください</div>
+    <div class="crop-container" id="cropContainer">
+      <img id="cropTargetImage" class="crop-image" src="" alt="トリミング対象">
+      <div id="cropBox" class="crop-box"></div>
+    </div>
+    <div style="margin-top:12px; display:flex; gap:10px;">
+      <button class="btn" id="confirmCropBtn">この範囲で切り抜く</button>
+      <button class="btn btn-secondary" id="cancelCropBtn">キャンセル</button>
+    </div>
+  </div>
+
+  <script>
+    const iroha = { 'i': 1, 'ro': 2, 'ha': 3, 'ni': 4, 'ho': 5, 'he': 6, 'to': 7,
+                  'ti': 8, 'ri': 9, 'nu': 10, 'ru': 11, 'wo': 12 };
+    const iroha_reverse = Object.fromEntries(Object.entries(iroha).map(([k, v]) => [v, k]));
+    // 飛び先データ（例）
+    const sampleMoves = {
+    "wo2": {"name": "新番", "1": "ru4", "2": "ru1", "3": "wo6", "4": "wo4","5": "wo5", "6": "7s"},
+    "wo3": {"name": "組外", "2": "ru4", "3": "wo7", "4": "wo5", "6": "ru1"},
+    "wo4": {"name": "儒者", "1": "ru5", "2": "ru2", "3": "wo8", "4": "wo6","5": "3s"},
+    "wo5": {"name": "坊主頭", "2": "wo8", "3": "ru1", "5": "ru6", "6": "ru3"},
+    "wo6": {"name": "堂形奉行", "1": "ru7", "2": "ru4", "4": "ru2", "5": "wo7"},
+    "wo7": {"name": "御近習番", "1": "ru8", "2": "nu1", "4": "nu3", "5": "ri4", "6": "ri1"},
+    "wo8": {"name": "御近習詰", "2": "nu2", "3": "nu8", "4": "ti5"},
+    "ru1": {"name": "町同心", "1": "nu4", "2": "ru4", "4": "ru5", "5": "nu5"},
+    "ru2": {"name": "小松御馬廻", "1":"ri7", "3": "ti8", "4": "ri3", "6": "nu7"},
+    "ru3": {"name": "定番御馬廻", "4":"ri6", "5": "ru5", "6": "ru7"},
+    "ru4": {"name": "御馬廻", "1": "ti3", "3": "nu4", "4": "ri2", "5": "ti5", "6": "nu6"},
+    "ru5": {"name": "御代官", "3": "ri1", "4": "nu2", "5": "ti4", "6": "nu7"},
+    "ru6": {"name": "道具奉行", "4": "nu1", "5": "ru8", "6": "ri1"},
+    "ru7": {"name": "呉服奉行", "1": "ri3", "3": "nu3", "4": "ri4", "6": "nu6"},
+    "ru8": {"name": "御異風", "1": "nu8", "2": "ri1", "4": "ti2", "5": "ri5", "6": "ri4"},
+    "nu1": {"name": "御射手", "1": "ti4", "2": "ri8", "3": "nu5"},
+    "nu2": {"name": "御祐筆", "2": "ri4", "3": "ti2", "4": "ti8", "5": "ti5", "6": "ri3"},
+    "nu3": {"name": "御勝手方", "1": "ti8", "3": "ri5", "4": "ri7", "5": "nu7"},
+    "nu4": {"name": "御武具奉行", "3":"ti1", "4": "ti4", "5": "nu5", "6": "ri6"},
+    "nu5": {"name": "御本物奉行", "1":"nu6", "2": "ri4", "3": "ti5", "5": "ti6"},
+    "nu6": {"name": "御預地奉行", "1":"ho1", "3": "to5", "4": "ri2", "6": "ti3"},
+    "nu7": {"name": "改作奉行", "2": "nu8", "3": "to6", "4": "to5", "5": "ri8", "6": "ti2"},
+    "nu8": {"name": "御広式御用達", "1": "ri3", "2": "to5", "4": "to6", "5": "ri5"},
+    "ri1": {"name": "定検地奉行", "4":"ri2", "5": "ri7", "6": "to5"},
+    "ri2": {"name": "割場奉行", "1": "ti1", "2": "to5", "3": "ri5", "5": "to6"},
+    "ri3": {"name": "御膳奉行", "1": "ru6", "2": "ti2", "5": "to5", "6": "to7"},
+    "ri4": {"name": "御納戸奉行", "1":"he3", "2": "he1", "4": "3s", "6": "ti6"},
+    "ri5": {"name": "会所奉行", "1": "he4", "2": "he2", "4": "to7", "5": "nu6", "6": "ti8"},
+    "ri6": {"name": "御作事奉行", "2":"ri7", "3": "ho1", "4": "ti8", "5": "he4", "6": "to8"},
+    "ri7": {"name": "御郡奉行", "1": "ri8", "2": "ti6", "4": "ti8", "5": "he3", "6": "he2"},
+    "ri8": {"name": "御普請奉行", "1":"he1", "2": "to6", "3": "ti3", "4": "3s", "6": "to5"},
+    "ti1": {"name": "公事場横目", "1":"ti3", "2": "ri4", "3": "1s", "5": "he2", "6": "ti2"},
+    "ti2": {"name": "大金奉行", "1": "ti8", "2": "nu6", "3": "to5", "5": "3s", "6": "2s"},
+    "ti3": {"name": "堺関守", "1": "ho2", "2": "he2", "3": "to6", "4": "ti8", "6": "to7"},
+    "ti4": {"name": "遠所町奉行", "2":"he4", "4": "he2", "5": "2s", "6": "to6"},
+    "ti5": {"name": "御大小将", "2": "ho1", "3": "to3", "4": "ri3", "5": "he3"},
+    "ti6": {"name": "御表小将", "1": "ho1", "2": "ri3", "3": "to3", "4": "he4"},
+    "ti7": {"name": "御奥小将", "1": "he3", "3": "he5", "4": "he6", "5": "to5", "6": "to8"},
+    "ti8": {"name": "御役御免", "2": "2s", "3": "ret", "4": "ho2", "5": "ni7", "6": "ni1"},
+    "to1": {"name": "寄合", "1": "ho4", "2": "ho6", "3": "ni5", "4": "ha4","5": "ho2", "6": "ni2"},
+    "to2": {"name": "大小将横目", "1":"ti8", "2": "ho6", "3": "he3", "4": "he4", "6": "3s"},
+    "to3": {"name": "表小将横目", "1":"ho1", "2": "ho2", "3": "ho3", "5": "ho5"},
+    "to4": {"name": "奥少将横目", "1":"ho1", "2": "ho4", "3": "ho5", "4": "ho2", "6": "to8"},
+    "to5": {"name": "頭並", "1": "he8", "2": "he7", "4": "ho2", "5": "he2","6": "ho1"},
+    "to6": {"name": "御細工奉行", "2":"to8", "3": "he1", "4": "3s", "5": "he5", "6": "to7"},
+    "to7": {"name": "御台所奉行", "1":"ho2", "2": "he4", "3": "he2", "6": "ti8"},
+    "to8": {"name": "御使番", "4": "ho3", "5": "ho2", "6": "ho6"},
+    "he1": {"name": "小松御馬廻御番頭", "2": "5s", "3": "he5", "4": "ho1/ho2", "6": "he4"},
+    "he2": {"name": "定番御馬廻御番頭", "1": "ti8", "2": "he8", "3": "he4","6": "ho1"},
+    "he3": {"name": "御大小将御番頭", "2": "ho3", "3": "ho6", "4": "ho2", "5": "ni2"},
+    "he4": {"name": "組外御番頭", "1":"ti8", "2": "he8", "4": "ho5", "5": "ho3", "6": "ho2"},
+    "he5": {"name": "表小将御番頭", "1": "ho7", "2": "ho4", "3": "ho1", "4": "he7", "6": "ho6"},
+    "he6": {"name": "御奥小将御番頭", "1": "ro4", "3": "ti8", "4": "ni1", "5": "ni5", "6": "to1"},
+    "he7": {"name": "新番頭", "1": "1s", "2": "ti8", "4": "ni7", "6": "i1"},
+    "he8": {"name": "物頭並広式御用人", "1": "ni5", "2": "he7", "5": "i1", "6": "ti8"},
+    "ho1": {"name": "物頭並", "1": "ho6", "2": "ho8", "3": "ti8", "4": "i1", "5": "2s"},
+    "ho2": {"name": "御先弓筒頭", "1":"ho3", "2": "ho8", "4": "ni7", "5": "ro3", "6": "1s"},
+    "ho3": {"name": "御留守居", "1": "he7", "2": "ho4", "3": "ho6", "4": "i1"},
+    "ho4": {"name": "御持弓筒頭", "1":"ni7", "3": "ho6", "4": "ni1", "5": "ni5", "6": "ni6"},
+    "ho5": {"name": "大組頭", "2": "ha1", "3": "ti8", "4": "ni7", "5": "ho2", "6": "ro4"},
+    "ho6": {"name": "御徒頭", "1": "ni8", "2": "ho8", "4": "he7", "6": "ni5"},
+    "ho7": {"name": "聞番", "2": "ni6", "3": "ni5", "4": "ho6", "5": "ti8","6": "ho2"},
+    "ho8": {"name": "町奉行", "1": "ni6", "3": "ni7", "4": "ni2", "5": "ha7", "6": "ti8"},
+    "ni1": {"name": "御鎗奉行", "3": "ti8", "5": "i1", "6": "ha1"},
+    "ni2": {"name": "同学校奉行", "1":"ni6", "2": "ro3"},
+    "ni3": {"name": "同石動郡代", "2":"ni6", "4": "ni8", "5": "ha3", "6": "ha2"},
+    "ni4": {"name": "同魚津在住", "1":"ha7", "3": "ni7", "5": "ti8", "6": "ha4"},
+    "ni5": {"name": "組頭並", "1": "ha2", "3": "ni7", "5": "ni6", "6": "ha1"},
+    "ni6": {"name": "御小将頭", "1": "ha7", "2": "ni7", "3": "ha1", "4": "ti8"},
+    "ni7": {"name": "御馬廻頭", "2": "ha7", "4": "ha2", "5": "ro5", "6": "ha1"},
+    "ni8": {"name": "定番頭並", "1": "i1", "2": "i4", "4": "ha3"},
+    "ha1": {"name": "定番頭", "1": "ha7", "2": "i1", "3": "ro4", "5": "5s","6": "ha3"},
+    "ha2": {"name": "御用部屋", "2": "ha4", "4": "ti8", "6": "ro7"},
+    "ha3": {"name": "人持末席", "1": "to1", "2": "ro3", "3": "ro5", "4": "ha7"},
+    "ha4": {"name": "人持", "2": "ha8", "4": "ro1", "5": "ro7", "6": "to1"},
+    "ha5": {"name": "諸方請取火消", "1": "ro4", "4": "ro1", "6": "to1"},
+    "ha6": {"name": "出銀奉行", "3": "i1", "5": "ro6"},
+    "ha7": {"name": "御算用場奉行", "1": "ti8", "2": "ro5", "3": "ro6", "6": "ro7"},
+    "ha8": {"name": "定火消", "2": "ro1", "4": "ro2/ti8", "6": "ro1"},
+    "ro1": {"name": "小松御城代", "1":"ro5", "2": "i1", "4": "ro8", "5": "ro7", "6": "ti8"},
+    "ro2": {"name": "御奏者番", "1": "ro6", "3": "4s", "5": "ro5"},
+    "ro3": {"name": "石動郡代", "3": "ro5", "6": "ha7"},
+    "ro4": {"name": "魚津在住", "2": "to1", "3": "ro7", "4": "ro1", "6": "ro4"},
+    "ro5": {"name": "公事場奉行", "1":"ro7", "3": "i1", "5": "ro8", "6": "ro2"},
+    "ro6": {"name": "寺社奉行", "2": "ro8", "3": "ro2", "4": "ro7", "6": "i1"},
+    "ro7": {"name": "若年寄", "1": "ro8", "2": "i1", "3": "i6", "4": "ti8"},
+    "ro8": {"name": "御家老", "1": "i3", "3": "5s", "5": "i7", "6": "i2"},
+    "i1": {"name": "年寄中隠居"},
+    "i2": {"name": "御年寄", "1": "i4", "2": "ti8", "3": "i3"},
+    "i3": {"name": "諸大夫", "1": "i1", "2": "i6", "4": "i4", "6": "ti8"},
+    "i4": {"name": "御用番"},
+    "i6": {"name": "御城代", "2": "i3", "3": "i1", "5": "ti8", "6": "i4"},
+    "i7": {"name": "御用番見習", "1": "i8", "2": "i6", "4": "i2"},
+    "i8": {"name": "加判御免", "3": "i8", "4": "i2", "5": "i4"}
+  };
+
+    const colorMap = {
+      1: '#ef4444', 2: '#f97316', 3: '#eab308',
+      4: '#22c55e', 5: '#3b82f6', 6: '#a855f7'
+    };
+
+    let selectedCell = null;
+
+    const gridOverlay = document.getElementById('gridOverlay');
+    const svgLayer = document.getElementById('svgLayer');
+    const gridWidthSelect = document.getElementById('gridWidthSelect');
+    const gridHeightSelect = document.getElementById('gridHeightSelect');
+
+    function getCellCenter(row, col, cellWidth, cellHeight) {
+      return {
+        x: (col - 0.5) * cellWidth,
+        y: (row - 0.5) * cellHeight
+      };
+    }
+
+    function getCellCoordinate(row, col) {
+      const rowLabel = iroha_reverse[row];
+      return rowLabel ? `${rowLabel}${col}` : null;
+    }
+
+    function parseCellCoordinate(coordinate) {
+      const match = /^([a-z]+)(\d+)$/.exec(coordinate);
+      if (!match) return null;
+
+      const row = iroha[match[1]];
+      const col = Number(match[2]);
+      if (!row || !Number.isInteger(col) || col < 1) {
+        return null;
+      }
+      return { row, col };
+    }
+
+    // グリッド生成 ＆ すべての矢印の事前レンダリング
+    function buildBoard(wsize, hsize) {
+      gridOverlay.innerHTML = '';
+      gridOverlay.style.gridTemplateColumns = `repeat(${wsize}, 1fr)`;
+      gridOverlay.style.gridTemplateRows = `repeat(${hsize}, 1fr)`;
+
+      const boardWidth = gridOverlay.clientWidth;
+      const boardHeight = gridOverlay.clientHeight;
+      const cellWidth = boardWidth / wsize;
+      const cellHeight = boardHeight / hsize;
+      svgLayer.setAttribute('viewBox', `0 0 ${boardWidth} ${boardHeight}`);
+
+      // マーカー以外の既存パスをクリア
+      svgLayer.querySelectorAll('path:not(defs path)').forEach(p => p.remove());
+
+      // 1. マスの生成
+      for (let row = 1; row <= hsize; row++) {
+        for (let col = 1; col <= wsize; col++) {
+          const cellCoordinate = getCellCoordinate(row, col);
+          const cell = document.createElement('div');
+          cell.className = 'grid-cell';
+          cell.dataset.cellId = cellCoordinate;
+
+          const label = document.createElement('span');
+          label.className = 'cell-number';
+          const coordinateLabel = document.createElement('span');
+          coordinateLabel.textContent = cellCoordinate;
+          label.appendChild(coordinateLabel);
+
+          const cellName = sampleMoves[cellCoordinate]?.name;
+          if (cellName) {
+            const nameLabel = document.createElement('span');
+            nameLabel.className = 'cell-name';
+            nameLabel.textContent = cellName;
+            label.appendChild(nameLabel);
+          }
+          cell.appendChild(label);
+
+          cell.addEventListener('click', () => selectCell(cellCoordinate));
+          gridOverlay.appendChild(cell);
+
+          // 2. このマスから伸びる飛び先データがあれば、全矢印をあらかじめDOMに生成しておく
+          const moves = sampleMoves[cellCoordinate];
+          if (!moves) continue;
+
+          const startPos = getCellCenter(row, col, cellWidth, cellHeight);
+          for (const [dice, targetCoordinate] of Object.entries(moves)) {
+            const target = parseCellCoordinate(targetCoordinate);
+            if (!target || target.row > hsize || target.col > wsize) continue;
+
+            const endPos = getCellCenter(target.row, target.col, cellWidth, cellHeight);
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+
+            const dx = endPos.x - startPos.x;
+            const dy = endPos.y - startPos.y;
+            const cx = (startPos.x + endPos.x) / 2 - dy * 0.15;
+            const cy = (startPos.y + endPos.y) / 2 + dx * 0.15;
+            const d = `M ${startPos.x} ${startPos.y} Q ${cx} ${cy} ${endPos.x} ${endPos.y}`;
+
+            path.setAttribute('d', d);
+            path.setAttribute('stroke', colorMap[dice]);
+            path.setAttribute('stroke-width', '4');
+            path.setAttribute('fill', 'none');
+            path.setAttribute('marker-end', `url(#arrow-${dice})`);
+            path.dataset.from = cellCoordinate;
+
+            svgLayer.appendChild(path);
+          }
+        }
+      }
+
+      const selectedCoordinate = selectedCell === null
+        ? null
+        : parseCellCoordinate(selectedCell);
+      if (selectedCoordinate && selectedCoordinate.row <= hsize && selectedCoordinate.col <= wsize) {
+        selectCell(selectedCell);
+      } else {
+        selectedCell = null;
+      }
+    }
+
+    // セルクリック時の処理（クラスの付け替えだけで超高速動作）
+    function selectCell(cellId) {
+      document.querySelectorAll('.grid-cell').forEach(el => el.classList.remove('selected'));
+      selectedCell = cellId;
+
+      const targetEl = document.querySelector(`.grid-cell[data-cell-id="${cellId}"]`);
+      if (targetEl) targetEl.classList.add('selected');
+
+      // すべての矢印から active を外し、該当するセルの矢印だけに active を付与
+      svgLayer.querySelectorAll('path:not(defs path)').forEach(path => {
+        if (path.dataset.from === cellId) {
+          path.classList.add('active-arrow');
+        } else {
+          path.classList.remove('active-arrow');
+        }
+      });
+    }
+
+    function rebuildBoard() {
+      buildBoard(
+        parseInt(gridWidthSelect.value, 10),
+        parseInt(gridHeightSelect.value, 10)
+      );
+    }
+
+    gridWidthSelect.addEventListener('change', rebuildBoard);
+    gridHeightSelect.addEventListener('change', rebuildBoard);
+    window.addEventListener('resize', rebuildBoard);
+
+    // 初期化
+    rebuildBoard();
+
+    // --- クロップ（トリミング）機能 ---
+    const imageInput = document.getElementById('imageInput');
+    const cropModal = document.getElementById('cropModal');
+    const cropTargetImage = document.getElementById('cropTargetImage');
+    const cropBox = document.getElementById('cropBox');
+    const boardContainer = document.getElementById('boardContainer');
+
+    let cropStart = null;
+    let isDragging = false;
+    let cropRect = { x: 0, y: 0, w: 0, h: 0 };
+
+    imageInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        cropTargetImage.src = event.target.result;
+        cropModal.classList.add('active');
+        cropBox.style.width = '0px';
+        cropBox.style.height = '0px';
+        cropBox.style.display = 'none';
+      };
+      reader.readAsDataURL(file);
+    });
+
+    const cropContainer = document.getElementById('cropContainer');
+
+    cropContainer.addEventListener('mousedown', (e) => {
+      const rect = cropContainer.getBoundingClientRect();
+      cropStart = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      isDragging = true;
+      cropBox.style.left = `${cropStart.x}px`;
+      cropBox.style.top = `${cropStart.y}px`;
+      cropBox.style.width = '0px';
+      cropBox.style.height = '0px';
+      cropBox.style.display = 'block';
+    });
+
+    cropContainer.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const rect = cropContainer.getBoundingClientRect();
+      const currentX = e.clientX - rect.left;
+      const currentY = e.clientY - rect.top;
+
+      const width = Math.abs(currentX - cropStart.x);
+      const height = Math.abs(currentY - cropStart.y);
+      const left = Math.min(cropStart.x, currentX);
+      const top = Math.min(cropStart.y, currentY);
+
+      cropBox.style.left = `${left}px`;
+      cropBox.style.top = `${top}px`;
+      cropBox.style.width = `${width}px`;
+      cropBox.style.height = `${height}px`;
+
+      cropRect = { left, top, width, height };
+    });
+
+    window.addEventListener('mouseup', () => { isDragging = false; });
+
+    document.getElementById('confirmCropBtn').addEventListener('click', () => {
+      if (!cropRect.width || !cropRect.height) {
+        alert('切り抜く範囲をドラッグして指定してください');
+        return;
+      }
+
+      const canvas = document.createElement('canvas');
+      const img = cropTargetImage;
+      const scaleX = img.naturalWidth / img.clientWidth;
+      const scaleY = img.naturalHeight / img.clientHeight;
+
+      canvas.width = cropRect.width * scaleX;
+      canvas.height = cropRect.height * scaleY;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(
+        img,
+        cropRect.left * scaleX,
+        cropRect.top * scaleY,
+        cropRect.width * scaleX,
+        cropRect.height * scaleY,
+        0, 0,
+        canvas.width, canvas.height
+      );
+
+      boardContainer.style.backgroundImage = `url(${canvas.toDataURL()})`;
+      boardContainer.style.aspectRatio = `${canvas.width} / ${canvas.height}`;
+      boardContainer.classList.add('image-loaded');
+      rebuildBoard();
+      cropModal.classList.remove('active');
+    });
+
+    document.getElementById('cancelCropBtn').addEventListener('click', () => {
+      cropModal.classList.remove('active');
+    });
+  </script>
+</body>
+</html>
