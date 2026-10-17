@@ -47,39 +47,6 @@
       background: #64748b;
     }
 
-    /* トリミングモーダル */
-    .modal {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.8);
-      z-index: 1000;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-    }
-    .modal.active {
-      display: flex;
-    }
-    .crop-container {
-      position: relative;
-      max-width: 90vw;
-      max-height: 75vh;
-      overflow: hidden;
-      user-select: none;
-    }
-    .crop-image {
-      max-width: 100%;
-      max-height: 75vh;
-      display: block;
-    }
-    .crop-box {
-      position: absolute;
-      border: 2px dashed #ff0055;
-      background: rgba(255, 0, 85, 0.15);
-      cursor: move;
-    }
-
     /* ビューアエリア */
     .board-container {
       position: relative;
@@ -114,8 +81,8 @@
       background: rgba(59, 130, 246, 0.15);
     }
     .grid-cell.selected {
-      background: rgba(234, 179, 8, 0.3);
-      border: 2px solid #eab308;
+      background: rgba(59, 130, 246, 0.18);
+      border: 2px solid #3b82f6;
     }
     .cell-number {
       position: absolute;
@@ -211,36 +178,23 @@
     <div class="grid-overlay" id="gridOverlay"></div>
     <svg class="svg-layer" id="svgLayer">
       <defs>
-        <marker id="arrow-1" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ef4444"/></marker>
-        <marker id="arrow-2" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#f97316"/></marker>
-        <marker id="arrow-3" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#eab308"/></marker>
-        <marker id="arrow-4" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#22c55e"/></marker>
-        <marker id="arrow-5" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#3b82f6"/></marker>
-        <marker id="arrow-6" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#a855f7"/></marker>
+        <marker id="arrow-1" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#65a30d"/></marker>
+        <marker id="arrow-2" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ea580c"/></marker>
+        <marker id="arrow-3" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#1e293b"/></marker>
+        <marker id="arrow-4" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#0d9488"/></marker>
+        <marker id="arrow-5" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb"/></marker>
+        <marker id="arrow-6" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3aed"/></marker>
       </defs>
     </svg>
   </div>
 
   <div class="legend">
-    <div class="legend-item"><div class="legend-color" style="background:#ef4444"></div> 1</div>
-    <div class="legend-item"><div class="legend-color" style="background:#f97316"></div> 2</div>
-    <div class="legend-item"><div class="legend-color" style="background:#eab308"></div> 3</div>
-    <div class="legend-item"><div class="legend-color" style="background:#22c55e"></div> 4</div>
-    <div class="legend-item"><div class="legend-color" style="background:#3b82f6"></div> 5</div>
-    <div class="legend-item"><div class="legend-color" style="background:#a855f7"></div> 6</div>
-  </div>
-
-  <!-- クロップ用モーダル -->
-  <div class="modal" id="cropModal">
-    <div style="color:white; margin-bottom:10px;">ドラッグして切り抜き範囲を指定してください</div>
-    <div class="crop-container" id="cropContainer">
-      <img id="cropTargetImage" class="crop-image" src="" alt="トリミング対象">
-      <div id="cropBox" class="crop-box"></div>
-    </div>
-    <div style="margin-top:12px; display:flex; gap:10px;">
-      <button class="btn" id="confirmCropBtn">この範囲で切り抜く</button>
-      <button class="btn btn-secondary" id="cancelCropBtn">キャンセル</button>
-    </div>
+    <div class="legend-item"><div class="legend-color" style="background:#65a30d"></div> 1</div>
+    <div class="legend-item"><div class="legend-color" style="background:#ea580c"></div> 2</div>
+    <div class="legend-item"><div class="legend-color" style="background:#1e293b"></div> 3</div>
+    <div class="legend-item"><div class="legend-color" style="background:#0d9488"></div> 4</div>
+    <div class="legend-item"><div class="legend-color" style="background:#2563eb"></div> 5</div>
+    <div class="legend-item"><div class="legend-color" style="background:#7c3aed"></div> 6</div>
   </div>
 
   <script>
@@ -296,7 +250,7 @@
     "to6": {"name": "御細工奉行", "2":"to8", "3": "he1", "4": "3s", "5": "he5", "6": "to7"},
     "to7": {"name": "御台所奉行", "1":"ho2", "2": "he4", "3": "he2", "6": "ti8"},
     "to8": {"name": "御使番", "4": "ho3", "5": "ho2", "6": "ho6"},
-    "he1": {"name": "小松御馬廻御番頭", "2": "5s", "3": "he5", "4": "ho1/ho2", "6": "he4"},
+    "he1": {"name": "小松御馬廻御番頭", "2": "5s", "3": "he5", "4": ["ho1","ho2"], "6": "he4"},
     "he2": {"name": "定番御馬廻御番頭", "1": "ti8", "2": "he8", "3": "he4","6": "ho1"},
     "he3": {"name": "御大小将御番頭", "2": "ho3", "3": "ho6", "4": "ho2", "5": "ni2"},
     "he4": {"name": "組外御番頭", "1":"ti8", "2": "he8", "4": "ho5", "5": "ho3", "6": "ho2"},
@@ -327,7 +281,7 @@
     "ha5": {"name": "諸方請取火消", "1": "ro4", "4": "ro1", "6": "to1"},
     "ha6": {"name": "出銀奉行", "3": "i1", "5": "ro6"},
     "ha7": {"name": "御算用場奉行", "1": "ti8", "2": "ro5", "3": "ro6", "6": "ro7"},
-    "ha8": {"name": "定火消", "2": "ro1", "4": "ro2/ti8", "6": "ro1"},
+    "ha8": {"name": "定火消", "2": "ro1", "4": ["ro2","ti8"], "6": "ro3"},
     "ro1": {"name": "小松御城代", "1":"ro5", "2": "i1", "4": "ro8", "5": "ro7", "6": "ti8"},
     "ro2": {"name": "御奏者番", "1": "ro6", "3": "4s", "5": "ro5"},
     "ro3": {"name": "石動郡代", "3": "ro5", "6": "ha7"},
@@ -346,8 +300,8 @@
   };
 
     const colorMap = {
-      1: '#ef4444', 2: '#f97316', 3: '#eab308',
-      4: '#22c55e', 5: '#3b82f6', 6: '#a855f7'
+      1: '#65a30d', 2: '#ea580c', 3: '#1e293b',
+      4: '#0d9488', 5: '#2563eb', 6: '#7c3aed'
     };
 
     let selectedCell = null;
@@ -427,27 +381,32 @@
           if (!moves) continue;
 
           const startPos = getCellCenter(row, col, cellWidth, cellHeight);
-          for (const [dice, targetCoordinate] of Object.entries(moves)) {
-            const target = parseCellCoordinate(targetCoordinate);
-            if (!target || target.row > hsize || target.col > wsize) continue;
+          for (const [dice, destinations] of Object.entries(moves)) {
+            if (!colorMap[dice]) continue;
+            const targetCoordinates = Array.isArray(destinations) ? destinations : [destinations];
 
-            const endPos = getCellCenter(target.row, target.col, cellWidth, cellHeight);
-            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            for (const targetCoordinate of targetCoordinates) {
+              const target = parseCellCoordinate(targetCoordinate);
+              if (!target || target.row > hsize || target.col > wsize) continue;
 
-            const dx = endPos.x - startPos.x;
-            const dy = endPos.y - startPos.y;
-            const cx = (startPos.x + endPos.x) / 2 - dy * 0.15;
-            const cy = (startPos.y + endPos.y) / 2 + dx * 0.15;
-            const d = `M ${startPos.x} ${startPos.y} Q ${cx} ${cy} ${endPos.x} ${endPos.y}`;
+              const endPos = getCellCenter(target.row, target.col, cellWidth, cellHeight);
+              const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
 
-            path.setAttribute('d', d);
-            path.setAttribute('stroke', colorMap[dice]);
-            path.setAttribute('stroke-width', '4');
-            path.setAttribute('fill', 'none');
-            path.setAttribute('marker-end', `url(#arrow-${dice})`);
-            path.dataset.from = cellCoordinate;
+              const dx = endPos.x - startPos.x;
+              const dy = endPos.y - startPos.y;
+              const cx = (startPos.x + endPos.x) / 2 - dy * 0.15;
+              const cy = (startPos.y + endPos.y) / 2 + dx * 0.15;
+              const d = `M ${startPos.x} ${startPos.y} Q ${cx} ${cy} ${endPos.x} ${endPos.y}`;
 
-            svgLayer.appendChild(path);
+              path.setAttribute('d', d);
+              path.setAttribute('stroke', colorMap[dice]);
+              path.setAttribute('stroke-width', '4');
+              path.setAttribute('fill', 'none');
+              path.setAttribute('marker-end', `url(#arrow-${dice})`);
+              path.dataset.from = cellCoordinate;
+
+              svgLayer.appendChild(path);
+            }
           }
         }
       }
@@ -494,100 +453,34 @@
     // 初期化
     rebuildBoard();
 
-    // --- クロップ（トリミング）機能 ---
+    // --- 画像読み込み ---
     const imageInput = document.getElementById('imageInput');
-    const cropModal = document.getElementById('cropModal');
-    const cropTargetImage = document.getElementById('cropTargetImage');
-    const cropBox = document.getElementById('cropBox');
     const boardContainer = document.getElementById('boardContainer');
 
-    let cropStart = null;
-    let isDragging = false;
-    let cropRect = { x: 0, y: 0, w: 0, h: 0 };
-
-    imageInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
+    imageInput.addEventListener('change', () => {
+      const file = imageInput.files[0];
+      imageInput.value = '';
       if (!file) return;
 
       const reader = new FileReader();
-      reader.onload = (event) => {
-        cropTargetImage.src = event.target.result;
-        cropModal.classList.add('active');
-        cropBox.style.width = '0px';
-        cropBox.style.height = '0px';
-        cropBox.style.display = 'none';
+      reader.onload = () => {
+        if (typeof reader.result !== 'string') {
+          alert('画像を読み込めませんでした');
+          return;
+        }
+
+        const image = new Image();
+        image.onload = () => {
+          boardContainer.style.backgroundImage = `url(${reader.result})`;
+          boardContainer.style.aspectRatio = `${image.naturalWidth} / ${image.naturalHeight}`;
+          boardContainer.classList.add('image-loaded');
+          rebuildBoard();
+        };
+        image.onerror = () => alert('画像を表示できませんでした');
+        image.src = reader.result;
       };
+      reader.onerror = () => alert('画像ファイルを読み込めませんでした');
       reader.readAsDataURL(file);
-    });
-
-    const cropContainer = document.getElementById('cropContainer');
-
-    cropContainer.addEventListener('mousedown', (e) => {
-      const rect = cropContainer.getBoundingClientRect();
-      cropStart = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-      isDragging = true;
-      cropBox.style.left = `${cropStart.x}px`;
-      cropBox.style.top = `${cropStart.y}px`;
-      cropBox.style.width = '0px';
-      cropBox.style.height = '0px';
-      cropBox.style.display = 'block';
-    });
-
-    cropContainer.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      const rect = cropContainer.getBoundingClientRect();
-      const currentX = e.clientX - rect.left;
-      const currentY = e.clientY - rect.top;
-
-      const width = Math.abs(currentX - cropStart.x);
-      const height = Math.abs(currentY - cropStart.y);
-      const left = Math.min(cropStart.x, currentX);
-      const top = Math.min(cropStart.y, currentY);
-
-      cropBox.style.left = `${left}px`;
-      cropBox.style.top = `${top}px`;
-      cropBox.style.width = `${width}px`;
-      cropBox.style.height = `${height}px`;
-
-      cropRect = { left, top, width, height };
-    });
-
-    window.addEventListener('mouseup', () => { isDragging = false; });
-
-    document.getElementById('confirmCropBtn').addEventListener('click', () => {
-      if (!cropRect.width || !cropRect.height) {
-        alert('切り抜く範囲をドラッグして指定してください');
-        return;
-      }
-
-      const canvas = document.createElement('canvas');
-      const img = cropTargetImage;
-      const scaleX = img.naturalWidth / img.clientWidth;
-      const scaleY = img.naturalHeight / img.clientHeight;
-
-      canvas.width = cropRect.width * scaleX;
-      canvas.height = cropRect.height * scaleY;
-
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(
-        img,
-        cropRect.left * scaleX,
-        cropRect.top * scaleY,
-        cropRect.width * scaleX,
-        cropRect.height * scaleY,
-        0, 0,
-        canvas.width, canvas.height
-      );
-
-      boardContainer.style.backgroundImage = `url(${canvas.toDataURL()})`;
-      boardContainer.style.aspectRatio = `${canvas.width} / ${canvas.height}`;
-      boardContainer.classList.add('image-loaded');
-      rebuildBoard();
-      cropModal.classList.remove('active');
-    });
-
-    document.getElementById('cancelCropBtn').addEventListener('click', () => {
-      cropModal.classList.remove('active');
     });
   </script>
 </body>
